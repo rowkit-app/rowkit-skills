@@ -1,35 +1,37 @@
 ---
-name: generic-builder-tables
-description: Create tables, edit schema, and read/write records in a Generic Builder app using its scoped agent API key — including derived formula fields that compute themselves from other columns (totals, flags, cross-table lookups). Use whenever the user wants an AI agent to maintain structured data in their Generic Builder workspace — a CRM, invoice log, monitoring feed, inventory tracker, waitlist, or any other table-shaped tracking task — instead of doing it by hand in the UI.
+name: rowkit-tables
+description: Create tables, edit schema, and read/write records in a Rowkit workspace using its scoped agent API key — including derived formula fields that compute themselves from other columns (totals, flags, cross-table lookups). Use whenever the user wants an AI agent to maintain structured data in their Rowkit workspace — a CRM, invoice log, monitoring feed, inventory tracker, waitlist, or any other table-shaped tracking task — instead of doing it by hand in the UI.
 ---
 
-# Generic Builder — agent table access
+# Rowkit — agent table access
 
-This skill lets an agent create and maintain tables of data in a Generic Builder
+This skill lets an agent create and maintain tables of data in a Rowkit
 workspace on the user's behalf: define schema, then create/read/update/delete
 records. It talks to one app only — the app the user's API key was minted for.
 
 ## Before you do anything
 
-You need two things from the user, once:
+You need one thing from the user, once:
 
-1. **`GENERIC_BUILDER_API_BASE`** — the base URL of their Generic Builder server
-   (e.g. `https://api.example.com` or `http://localhost:8080` for local dev).
-2. **`GENERIC_BUILDER_API_KEY`** — a key starting with `gb_live_`, created by the
-   app owner in the product under **Settings > API keys > New API key**. It is
-   shown to them exactly once at creation time.
+- **`ROWKIT_API_KEY`** — a key starting with `gb_live_`, created by the app
+  owner in Rowkit under **Settings > API keys > New API key**. It is shown to
+  them exactly once at creation time.
 
-If you don't have both, ask the user for them before calling anything. Do not
-guess a base URL and do not invent a key.
+`ROWKIT_API_BASE` defaults to `https://api.rowkit.app` — Rowkit's hosted API.
+Only ask for a different base URL if the user tells you they're running a
+self-hosted or local instance (e.g. `http://localhost:8080`).
+
+If you don't have the key, ask the user for it before calling anything. Do
+not invent one.
 
 ## Handling the key securely
 
 - Treat the key exactly like a password. **Never** print it in full back to the
   user, log it, write it into a file you create, or include it in any output
   that might be shared, committed, or displayed. It's fine to reference it as
-  `$GENERIC_BUILDER_API_KEY` / an env var, or by its last 4 characters.
+  `$ROWKIT_API_KEY` / an env var, or by its last 4 characters.
 - Send it only as `Authorization: Bearer <key>` over HTTPS, only to
-  `GENERIC_BUILDER_API_BASE`. Never send it anywhere else.
+  `ROWKIT_API_BASE`. Never send it anywhere else.
 - The key is already scoped: it can only touch the one app it was minted for,
   and it can only do schema + record operations (see "What this key cannot do"
   below) — you don't need to add your own extra restrictions on top.
@@ -42,10 +44,10 @@ guess a base URL and do not invent a key.
 
 ## Base request shape
 
-Every call below is relative to `GENERIC_BUILDER_API_BASE`, with:
+Every call below is relative to `ROWKIT_API_BASE`, with:
 
 ```
-Authorization: Bearer <GENERIC_BUILDER_API_KEY>
+Authorization: Bearer <ROWKIT_API_KEY>
 Content-Type: application/json   (on POST/PATCH)
 ```
 
@@ -253,7 +255,7 @@ knowing:
   `date`, `datetime`, and `single_select`. To *follow* a link, use a lookup
   path in the expression; you can't *produce* one.
 
-### Agent workflow for designing a formula
+### Designing a formula: the sequence to follow
 
 Use this sequence rather than guessing from labels or attempting one huge
 schema mutation:
@@ -292,8 +294,8 @@ than `=`, and quote literal text (`'priority'`).
 
 This single `POST /v0/agent/tables` payload demonstrates formulas that depend
 on stored fields *and* formulas that depend on other formulas. Dependencies
-are validated across the complete payload; the engine computes `subtotal`
-before `total_after_discount`, then `order_band`.
+are validated across the complete payload; `subtotal` is computed before
+`total_after_discount`, then `order_band`.
 
 ```json
 {
@@ -329,9 +331,9 @@ it numerically rather than depending on trailing-zero formatting in an immediate
 write response. Never send those three formula keys back in a create/update
 request.
 
-**Writing "crazy" / deeply nested formulas** — since the language is small
-but composable, complex logic is built by nesting the same handful of
-primitives rather than reaching for anything exotic. Some patterns:
+**Composing complex formulas** — since the language is small but composable,
+complex logic is built by nesting the same handful of primitives rather than
+reaching for anything exotic. Some patterns:
 
 - **Multi-branch logic** (no native `switch`/`case` — nest `if`):
   ```
@@ -360,7 +362,7 @@ primitives rather than reaching for anything exotic. Some patterns:
   first (`is_overdue = due_date < today()`), then reference it from a text
   formula (`status = if(is_overdue, 'late', 'on_time')`) instead of repeating
   the condition — this also keeps each formula's `formula` string short and
-  readable, and mirrors how the dependency graph already orders evaluation.
+  readable, and matches the order dependent fields are evaluated in.
 
 If an expression gets hard to read as one line, that's a sign to split it
 into two chained formula fields (one computing an intermediate value, the
@@ -468,8 +470,8 @@ deployment), not necessarily `403`:
 - Inviting or removing members, or changing anyone's role.
 - Reading the audit log.
 - Creating or renaming the app itself, or changing app-level settings.
-- Anything related to views/forms/dashboards (not part of this app's current
-  feature set at all).
+- Anything related to views, forms, or dashboards — those aren't exposed
+  through this API at all; manage them in the product UI.
 
 If a task needs one of these, tell the user to do it themselves in the
 product UI rather than attempting a workaround.
@@ -484,7 +486,7 @@ product UI rather than attempting a workaround.
 | `404` | Table, field, or record not found | Double-check the ID; it may have been deleted. |
 | `409` | Version conflict (schema or record changed since you last read it) | Re-fetch and retry with the current version. |
 
-## Worked example: build a simple CRM from scratch
+## Worked example: build a simple CRM
 
 1. `POST /v0/agent/tables` — create `leads` with fields `full_name` (text,
    required), `email` (email), `stage` (single_select: new/contacted/won/lost).
@@ -531,7 +533,7 @@ field, plus formulas that reach one hop across the link.
    already computed.
 4. If a product's price later changes, `PATCH` just the product — every log
    row linked to it recomputes `value_impact` automatically (fan-out). Don't
-   loop over the log rows yourself; the engine does it.
+   loop over the log rows yourself; that's handled for you.
 
 The pattern generalizes: any time a row in table A should show data owned by a
 row in table B, put a `link_record` on A and a lookup formula (`b.some_field`)

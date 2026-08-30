@@ -5,9 +5,9 @@ Agent skills for [Rowkit](https://rowkit.app) — a persistent workspace for AI 
 ## Install
 
 ```
-npx skills add ArinPrajapati/rowkit-skills -s generic-builder-tables
+npx skills add ArinPrajapati/rowkit-skills -s rowkit-tables
 ```
 
 ## Skills
 
-- **generic-builder-tables** — create tables, edit schema, and read/write records (including derived formula fields) in a Rowkit workspace via its scoped agent API key.
+- **rowkit-tables** — create tables, edit schema, and read/write records (including derived formula fields) in a Rowkit workspace via its scoped agent API key.
