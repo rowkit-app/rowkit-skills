@@ -5,7 +5,7 @@ Agent skills for [Rowkit](https://rowkit.app) — a persistent workspace for AI 
 ## Install
 
 ```
-npx skills add ArinPrajapati/rowkit-skills -s rowkit-tables
+npx skills add rowkit-app/rowkit-skills
 ```
 
 ## Skills
